@@ -14,6 +14,60 @@ This package provides reading and writing of [FlatGeobuf](https://flatgeobuf.org
 - **Property support** with automatic type inference from GeoJSON properties
 - **All orb geometry types** supported: Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, Collection, Ring, Bound
 
+## Performance
+
+FlatGeobuf offers significant performance advantages over GeoJSON, particularly for coordinate-heavy geometries and spatial queries.
+
+### Benchmark Results
+
+#### Payload Size Comparison
+
+| Dataset | GeoJSON | FlatGeobuf | Savings |
+|---------|---------|------------|---------|
+| 1K Points | 116 KB | 164 KB | -41% (overhead) |
+| 1K Points + Properties | 294 KB | 282 KB | **4%** |
+| 1K LineStrings (10 vertices each) | 472 KB | 305 KB | **35%** |
+| 1K Simple Polygons | 277 KB | 227 KB | **18%** |
+| 1K Complex Polygons (32 vertices) | 1.3 MB | 664 KB | **51%** |
+
+#### Serialization Speed
+
+| Operation | GeoJSON | FlatGeobuf | Speedup |
+|-----------|---------|------------|---------|
+| Serialize 1K Points | 3.3 ms | 1.0 ms | **3x faster** |
+| Serialize 10K Points | 32 ms | 11 ms | **3x faster** |
+
+#### Deserialization Speed
+
+| Operation | GeoJSON | FlatGeobuf | Speedup |
+|-----------|---------|------------|---------|
+| Deserialize 1K Points | 8.3 ms | 0.5 ms | **18x faster** |
+| Deserialize 10K Points | 83 ms | 4.8 ms | **17x faster** |
+
+#### Spatial Query Performance
+
+This is where FlatGeobuf truly shines - the built-in R-tree index enables O(log n) spatial queries:
+
+| Operation | GeoJSON (parse + scan) | FlatGeobuf (indexed) | Speedup |
+|-----------|------------------------|----------------------|---------|
+| Query 10K Points | 85 ms | 0.5 ms | **175x faster** |
+| Query 50K Points | 424 ms | 2.3 ms | **186x faster** |
+
+### Key Takeaways
+
+- **Complex geometries**: FlatGeobuf provides 35-51% smaller payloads for coordinate-heavy data
+- **Simple points**: GeoJSON may be smaller due to FlatGeobuf's header overhead
+- **Read performance**: FlatGeobuf is consistently 17-18x faster to deserialize
+- **Spatial queries**: The built-in R-tree index makes FlatGeobuf 175x+ faster for spatial lookups
+- **Memory efficiency**: FlatGeobuf uses ~6x less memory and allocations during parsing
+
+Run the benchmarks yourself:
+
+```bash
+go test -bench=. -benchmem
+go test -v -run "TestPerformanceSummary"
+```
+
 ## Installation
 
 ```bash
