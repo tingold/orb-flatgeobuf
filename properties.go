@@ -51,6 +51,7 @@ func inferColumns(features []*geojson.Feature, builder *flatbuffers.Builder) []*
 	for _, name := range columnOrder {
 		col := writer.NewColumn(builder)
 		col.SetName(name)
+		col.SetTitle(name) // Set title to match name for JS library compatibility
 		col.SetType(columnTypes[name])
 		col.SetNullable(true) // Allow null values
 		columns = append(columns, col)

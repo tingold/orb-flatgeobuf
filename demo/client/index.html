@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatGeobuf Demo - World Cities</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .info h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 2000;
+            text-align: center;
+        }
+        
+        .loading.hidden {
+            display: none;
+        }
+        
+        .popup-content {
+            min-width: 200px;
+        }
+        
+        .popup-content h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .popup-content p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .popup-content .capital {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="loading" id="loading">
+        <p>Loading map data...</p>
+    </div>
+    
+    <div class="info">
+        <h2>World Cities</h2>
+        <p>Click on any city marker to see details</p>
+        <p style="margin-top: 10px; font-size: 12px; color: #999;">
+            Data served as FlatGeobuf format
+        </p>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- FlatGeobuf JS Library - using latest version 4.4.0 -->
+    <script src="https://cdn.jsdelivr.net/npm/flatgeobuf@4.4.0/dist/flatgeobuf-geojson.min.js"></script>
+    
+    <script>
+        // Initialize map centered on the world
+        const map = L.map('map').setView([20, 0], 2);
+        
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Create a feature group for markers
+        const markers = L.featureGroup().addTo(map);
+        
+        // Function to create a popup HTML
+        function createPopupContent(feature) {
+            console.log(feature);
+            const props = feature.properties;
+            const isCapital = props.capital ? 'Yes' : 'No';
+            const capitalClass = props.capital ? 'capital' : '';
+            
+            return `
+                <div class="popup-content">
+                    <h3>${props.name || 'Unknown'}</h3>
+                    <p><strong>Country:</strong> ${props.country || 'Unknown'}</p>
+                    <p><strong>Population:</strong> ${props.population ? props.population.toLocaleString() : 'Unknown'}</p>
+                    <p class="${capitalClass}"><strong>Capital:</strong> ${isCapital}</p>
+                </div>
+            `;
+        }
+        
+        // Function to get marker color based on capital status
+        function getMarkerColor(isCapital) {
+            return isCapital ? '#d32f2f' : '#1976d2';
+        }
+        
+        // Function to calculate marker size based on population
+        function getMarkerSize(population) {
+            if (!population) return 8;
+            // Scale from 8px to 20px based on population (0 to 30M)
+            const minPop = 0;
+            const maxPop = 30000000;
+            const minSize = 8;
+            const maxSize = 20;
+            const normalized = Math.min(Math.max((population - minPop) / (maxPop - minPop), 0), 1);
+            return minSize + (normalized * (maxSize - minSize));
+        }
+        
+        // Load and display FlatGeobuf data
+        async function loadFlatGeobuf() {
+            try {
+                const loadingEl = document.getElementById('loading');
+                
+                // Check if flatgeobuf library is loaded
+                if (typeof flatgeobuf === 'undefined') {
+                    throw new Error('FlatGeobuf library not loaded. Please check the CDN link.');
+                }
+                
+                // Fetch the FlatGeobuf file as binary
+                const response = await fetch('/data.fgb');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                // Deserialize FlatGeobuf to GeoJSON
+                // The deserialize function with Uint8Array may return an async generator
+                let geojson = flatgeobuf.deserialize(uint8Array);
+                
+                // If it returns an async generator, collect features
+                if (geojson && typeof geojson[Symbol.asyncIterator] === 'function') {
+                    const features = [];
+                    for await (const feature of geojson) {
+                        features.push(feature);
+                    }
+                    geojson = {
+                        type: 'FeatureCollection',
+                        features: features
+                    };
+                }
+                
+                // Validate the result
+                if (!geojson || !geojson.features) {
+                    throw new Error('Invalid GeoJSON result');
+                }
+                console.log(geojson);
+                // Hide loading indicator
+                loadingEl.classList.add('hidden');
+                
+                // Add features to map
+                geojson.features.forEach(feature => {
+                    if (!feature.geometry || !feature.geometry.coordinates) {
+                        return;
+                    }
+                    
+                    const coords = feature.geometry.coordinates;
+                    const lat = coords[1];
+                    const lon = coords[0];
+                    const props = feature.properties || {};
+                    
+                    // Create circle marker
+                    const radius = getMarkerSize(props.population);
+                    const color = getMarkerColor(props.capital);
+                    
+                    const circle = L.circleMarker([lat, lon], {
+                        radius: radius,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                    
+                    // Add popup
+                    circle.bindPopup(createPopupContent(feature));
+                    
+                    // Add to map
+                    circle.addTo(markers);
+                });
+                
+                // Fit map to show all markers
+                if (geojson.features.length > 0) {
+                    map.fitBounds(markers.getBounds().pad(0.1));
+                }
+                
+            } catch (error) {
+                console.error('Error loading FlatGeobuf data:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<p style="color: red;">Error loading data. Please check the console.</p>';
+            }
+        }
+        
+        // Load data when page is ready
+        loadFlatGeobuf();
+    </script>
+</body>
+</html>
