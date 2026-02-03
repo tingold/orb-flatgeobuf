@@ -79,7 +79,9 @@ func main() {
 		if r.URL.Path == "/data.fgb" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Write(flatgeobufData)
+			if _, err := w.Write(flatgeobufData); err != nil {
+				log.Printf("Error writing response: %v", err)
+			}
 			return
 		}
 		// Serve static files for everything else

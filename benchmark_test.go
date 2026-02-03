@@ -18,23 +18,23 @@ import (
 // =============================================================================
 
 // generatePoints creates n random points within the given bounds.
-func generatePoints(n int, minX, maxX, minY, maxY float64) []orb.Point {
+func generatePoints(r *rand.Rand, n int, minX, maxX, minY, maxY float64) []orb.Point {
 	points := make([]orb.Point, n)
 	for i := 0; i < n; i++ {
-		x := minX + rand.Float64()*(maxX-minX)
-		y := minY + rand.Float64()*(maxY-minY)
+		x := minX + r.Float64()*(maxX-minX)
+		y := minY + r.Float64()*(maxY-minY)
 		points[i] = orb.Point{x, y}
 	}
 	return points
 }
 
 // generateLineStrings creates n random linestrings with the given number of vertices.
-func generateLineStrings(n, verticesPerLine int, minX, maxX, minY, maxY float64) []orb.LineString {
+func generateLineStrings(r *rand.Rand, n, verticesPerLine int, minX, maxX, minY, maxY float64) []orb.LineString {
 	lines := make([]orb.LineString, n)
 	for i := 0; i < n; i++ {
 		line := make(orb.LineString, verticesPerLine)
-		startX := minX + rand.Float64()*(maxX-minX)
-		startY := minY + rand.Float64()*(maxY-minY)
+		startX := minX + r.Float64()*(maxX-minX)
+		startY := minY + r.Float64()*(maxY-minY)
 		for j := 0; j < verticesPerLine; j++ {
 			line[j] = orb.Point{
 				startX + float64(j)*0.01,
@@ -47,12 +47,12 @@ func generateLineStrings(n, verticesPerLine int, minX, maxX, minY, maxY float64)
 }
 
 // generatePolygons creates n random square polygons.
-func generatePolygons(n int, minX, maxX, minY, maxY float64) []orb.Polygon {
+func generatePolygons(r *rand.Rand, n int, minX, maxX, minY, maxY float64) []orb.Polygon {
 	polys := make([]orb.Polygon, n)
 	for i := 0; i < n; i++ {
-		x := minX + rand.Float64()*(maxX-minX-0.1)
-		y := minY + rand.Float64()*(maxY-minY-0.1)
-		size := 0.01 + rand.Float64()*0.09
+		x := minX + r.Float64()*(maxX-minX-0.1)
+		y := minY + r.Float64()*(maxY-minY-0.1)
+		size := 0.01 + r.Float64()*0.09
 		polys[i] = orb.Polygon{{
 			{x, y},
 			{x + size, y},
@@ -65,12 +65,12 @@ func generatePolygons(n int, minX, maxX, minY, maxY float64) []orb.Polygon {
 }
 
 // generateComplexPolygons creates polygons with more vertices (approximating circles).
-func generateComplexPolygons(n, verticesPerPolygon int, minX, maxX, minY, maxY float64) []orb.Polygon {
+func generateComplexPolygons(r *rand.Rand, n, verticesPerPolygon int, minX, maxX, minY, maxY float64) []orb.Polygon {
 	polys := make([]orb.Polygon, n)
 	for i := 0; i < n; i++ {
-		centerX := minX + rand.Float64()*(maxX-minX)
-		centerY := minY + rand.Float64()*(maxY-minY)
-		radius := 0.01 + rand.Float64()*0.05
+		centerX := minX + r.Float64()*(maxX-minX)
+		centerY := minY + r.Float64()*(maxY-minY)
+		radius := 0.01 + r.Float64()*0.05
 
 		ring := make(orb.Ring, verticesPerPolygon+1)
 		for j := 0; j < verticesPerPolygon; j++ {
@@ -99,32 +99,32 @@ func cos(x float64) float64 {
 }
 
 // generateFeatureCollection creates a FeatureCollection with random geometries and properties.
-func generateFeatureCollection(n int, geomType string, withProperties bool) *geojson.FeatureCollection {
+func generateFeatureCollection(r *rand.Rand, n int, geomType string, withProperties bool) *geojson.FeatureCollection {
 	fc := geojson.NewFeatureCollection()
 
 	var geometries []orb.Geometry
 
 	switch geomType {
 	case "point":
-		points := generatePoints(n, -180, 180, -90, 90)
+		points := generatePoints(r, n, -180, 180, -90, 90)
 		geometries = make([]orb.Geometry, n)
 		for i, p := range points {
 			geometries[i] = p
 		}
 	case "linestring":
-		lines := generateLineStrings(n, 10, -180, 180, -90, 90)
+		lines := generateLineStrings(r, n, 10, -180, 180, -90, 90)
 		geometries = make([]orb.Geometry, n)
 		for i, l := range lines {
 			geometries[i] = l
 		}
 	case "polygon":
-		polys := generatePolygons(n, -180, 180, -90, 90)
+		polys := generatePolygons(r, n, -180, 180, -90, 90)
 		geometries = make([]orb.Geometry, n)
 		for i, p := range polys {
 			geometries[i] = p
 		}
 	case "complexpolygon":
-		polys := generateComplexPolygons(n, 32, -180, 180, -90, 90)
+		polys := generateComplexPolygons(r, n, 32, -180, 180, -90, 90)
 		geometries = make([]orb.Geometry, n)
 		for i, p := range polys {
 			geometries[i] = p
@@ -137,9 +137,9 @@ func generateFeatureCollection(n int, geomType string, withProperties bool) *geo
 			f.Properties = geojson.Properties{
 				"id":          i,
 				"name":        fmt.Sprintf("Feature %d", i),
-				"value":       rand.Float64() * 1000,
-				"active":      rand.Intn(2) == 1,
-				"category":    fmt.Sprintf("cat_%d", rand.Intn(10)),
+				"value":       r.Float64() * 1000,
+				"active":      r.Intn(2) == 1,
+				"category":    fmt.Sprintf("cat_%d", r.Intn(10)),
 				"description": "This is a test feature with some descriptive text that adds to the payload size",
 			}
 		}
@@ -170,7 +170,7 @@ func TestSizeComparison_ComplexPolygons(t *testing.T) {
 }
 
 func testSizeComparison(t *testing.T, geomType string, sizes []int) {
-	rand.Seed(42) // Reproducible results
+	r := rand.New(rand.NewSource(42)) // Reproducible results
 
 	t.Logf("\n=== Size Comparison: %s ===", geomType)
 	t.Logf("%-12s | %-15s | %-15s | %-15s | %-10s", "Features", "GeoJSON (bytes)", "FGB (bytes)", "FGB+Index", "Savings")
@@ -178,7 +178,7 @@ func testSizeComparison(t *testing.T, geomType string, sizes []int) {
 
 	for _, n := range sizes {
 		// Without properties
-		fc := generateFeatureCollection(n, geomType, false)
+		fc := generateFeatureCollection(r, n, geomType, false)
 
 		// GeoJSON size
 		geoJSONBytes, err := json.Marshal(fc)
@@ -215,7 +215,7 @@ func testSizeComparison(t *testing.T, geomType string, sizes []int) {
 	t.Logf("%s", "-------------|-----------------|-----------------|-----------------|----------")
 
 	for _, n := range sizes {
-		fc := generateFeatureCollection(n, geomType, true)
+		fc := generateFeatureCollection(r, n, geomType, true)
 
 		geoJSONBytes, _ := json.Marshal(fc)
 		geoJSONSize := len(geoJSONBytes)
@@ -331,8 +331,8 @@ func BenchmarkSerialize_FlatGeobufIdx_LineStrings_1000(b *testing.B) {
 }
 
 func benchmarkGeoJSONSerialize(b *testing.B, geomType string, n int, withProps bool) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(n, geomType, withProps)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, n, geomType, withProps)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -346,8 +346,8 @@ func benchmarkGeoJSONSerialize(b *testing.B, geomType string, n int, withProps b
 }
 
 func benchmarkFlatGeobufSerialize(b *testing.B, geomType string, n int, withProps, includeIndex bool) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(n, geomType, withProps)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, n, geomType, withProps)
 	opts := &Options{IncludeIndex: includeIndex}
 
 	b.ResetTimer()
@@ -430,8 +430,8 @@ func BenchmarkDeserialize_FlatGeobuf_LineStrings_1000(b *testing.B) {
 }
 
 func benchmarkGeoJSONDeserialize(b *testing.B, geomType string, n int, withProps bool) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(n, geomType, withProps)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, n, geomType, withProps)
 	data, err := json.Marshal(fc)
 	if err != nil {
 		b.Fatal(err)
@@ -450,8 +450,8 @@ func benchmarkGeoJSONDeserialize(b *testing.B, geomType string, n int, withProps
 }
 
 func benchmarkFlatGeobufDeserialize(b *testing.B, geomType string, n int, withProps bool) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(n, geomType, withProps)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, n, geomType, withProps)
 
 	// Write to temp file (FlatGeobuf reader requires file or byte data)
 	tmpDir := b.TempDir()
@@ -463,8 +463,11 @@ func benchmarkFlatGeobufDeserialize(b *testing.B, geomType string, n int, withPr
 	}
 
 	err = WriteFeatures(file, fc, &Options{IncludeIndex: true})
-	file.Close()
 	if err != nil {
+		_ = file.Close()
+		b.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
 		b.Fatal(err)
 	}
 
@@ -479,10 +482,13 @@ func benchmarkFlatGeobufDeserialize(b *testing.B, geomType string, n int, withPr
 
 		_, err = reader.ReadAll()
 		if err != nil {
+			_ = reader.Close()
 			b.Fatal(err)
 		}
 
-		reader.Close()
+		if err := reader.Close(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -493,8 +499,8 @@ func benchmarkFlatGeobufDeserialize(b *testing.B, geomType string, n int, withPr
 func BenchmarkSpatialQuery_GeoJSON_Points_10000(b *testing.B) {
 	// GeoJSON doesn't have built-in spatial indexing, so we simulate
 	// a full scan with bounds checking
-	rand.Seed(42)
-	fc := generateFeatureCollection(10000, "point", false)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 10000, "point", false)
 	data, _ := json.Marshal(fc)
 
 	bounds := orb.Bound{
@@ -521,19 +527,29 @@ func BenchmarkSpatialQuery_GeoJSON_Points_10000(b *testing.B) {
 				}
 			}
 		}
+		_ = matches // Prevent optimization
 	}
 }
 
 func BenchmarkSpatialQuery_FlatGeobuf_Points_10000(b *testing.B) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(10000, "point", false)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 10000, "point", false)
 
 	tmpDir := b.TempDir()
 	tmpFile := filepath.Join(tmpDir, "benchmark_spatial.fgb")
 
-	file, _ := os.Create(tmpFile)
-	_ = WriteFeatures(file, fc, &Options{IncludeIndex: true})
-	file.Close()
+	file, err := os.Create(tmpFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = WriteFeatures(file, fc, &Options{IncludeIndex: true})
+	if err != nil {
+		_ = file.Close()
+		b.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		b.Fatal(err)
+	}
 
 	bounds := orb.Bound{
 		Min: orb.Point{-10, -10},
@@ -544,16 +560,25 @@ func BenchmarkSpatialQuery_FlatGeobuf_Points_10000(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		reader, _ := NewReader(tmpFile)
-		_, _ = reader.Search(bounds)
-		reader.Close()
+		reader, err := NewReader(tmpFile)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = reader.Search(bounds)
+		if err != nil {
+			_ = reader.Close()
+			b.Fatal(err)
+		}
+		if err := reader.Close(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 // Larger spatial query benchmarks
 func BenchmarkSpatialQuery_GeoJSON_Points_50000(b *testing.B) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(50000, "point", false)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 50000, "point", false)
 	data, _ := json.Marshal(fc)
 
 	bounds := orb.Bound{
@@ -579,19 +604,29 @@ func BenchmarkSpatialQuery_GeoJSON_Points_50000(b *testing.B) {
 				}
 			}
 		}
+		_ = matches // Prevent optimization
 	}
 }
 
 func BenchmarkSpatialQuery_FlatGeobuf_Points_50000(b *testing.B) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(50000, "point", false)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 50000, "point", false)
 
 	tmpDir := b.TempDir()
 	tmpFile := filepath.Join(tmpDir, "benchmark_spatial_large.fgb")
 
-	file, _ := os.Create(tmpFile)
-	_ = WriteFeatures(file, fc, &Options{IncludeIndex: true})
-	file.Close()
+	file, err := os.Create(tmpFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = WriteFeatures(file, fc, &Options{IncludeIndex: true})
+	if err != nil {
+		_ = file.Close()
+		b.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		b.Fatal(err)
+	}
 
 	bounds := orb.Bound{
 		Min: orb.Point{-10, -10},
@@ -602,9 +637,18 @@ func BenchmarkSpatialQuery_FlatGeobuf_Points_50000(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		reader, _ := NewReader(tmpFile)
-		_, _ = reader.Search(bounds)
-		reader.Close()
+		reader, err := NewReader(tmpFile)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = reader.Search(bounds)
+		if err != nil {
+			_ = reader.Close()
+			b.Fatal(err)
+		}
+		if err := reader.Close(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -613,8 +657,8 @@ func BenchmarkSpatialQuery_FlatGeobuf_Points_50000(b *testing.B) {
 // =============================================================================
 
 func BenchmarkMemory_GeoJSON_Points_10000(b *testing.B) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(10000, "point", true)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 10000, "point", true)
 	data, _ := json.Marshal(fc)
 
 	b.ResetTimer()
@@ -631,23 +675,41 @@ func BenchmarkMemory_GeoJSON_Points_10000(b *testing.B) {
 }
 
 func BenchmarkMemory_FlatGeobuf_Points_10000(b *testing.B) {
-	rand.Seed(42)
-	fc := generateFeatureCollection(10000, "point", true)
+	r := rand.New(rand.NewSource(42))
+	fc := generateFeatureCollection(r, 10000, "point", true)
 
 	tmpDir := b.TempDir()
 	tmpFile := filepath.Join(tmpDir, "benchmark_mem.fgb")
 
-	file, _ := os.Create(tmpFile)
-	_ = WriteFeatures(file, fc, &Options{IncludeIndex: true})
-	file.Close()
+	file, err := os.Create(tmpFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = WriteFeatures(file, fc, &Options{IncludeIndex: true})
+	if err != nil {
+		_ = file.Close()
+		b.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		reader, _ := NewReader(tmpFile)
-		result, _ := reader.ReadAll()
-		reader.Close()
+		reader, err := NewReader(tmpFile)
+		if err != nil {
+			b.Fatal(err)
+		}
+		result, err := reader.ReadAll()
+		if err != nil {
+			_ = reader.Close()
+			b.Fatal(err)
+		}
+		if err := reader.Close(); err != nil {
+			b.Fatal(err)
+		}
 		// Force the result to be used
 		if len(result.Features) == 0 {
 			b.Fatal("no features")
@@ -664,7 +726,7 @@ func TestPerformanceSummary(t *testing.T) {
 		t.Skip("Skipping performance summary in short mode")
 	}
 
-	rand.Seed(42)
+	r := rand.New(rand.NewSource(42))
 
 	t.Log("\n" + "=" + "================================================================")
 	t.Log("FlatGeobuf vs GeoJSON Performance Summary")
@@ -692,7 +754,7 @@ func TestPerformanceSummary(t *testing.T) {
 	t.Log("---------------------|--------------|--------------|--------------|--------")
 
 	for _, tc := range testCases {
-		fc := generateFeatureCollection(tc.count, tc.geomType, tc.withProps)
+		fc := generateFeatureCollection(r, tc.count, tc.geomType, tc.withProps)
 
 		// GeoJSON
 		geoJSONBytes, _ := json.Marshal(fc)
